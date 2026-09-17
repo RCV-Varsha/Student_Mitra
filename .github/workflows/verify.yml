@@ -1,0 +1,34 @@
+name: Verify
+on: [push, pull_request]
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: studia
+          POSTGRES_PASSWORD: ci-only
+          POSTGRES_DB: studia
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U studia" --health-interval 5s --health-timeout 5s --health-retries 15
+    env:
+      DEBUG: '1'
+      DATABASE_URL: postgresql://studia:ci-only@localhost:5432/studia
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: pip install -r backend/requirements.lock
+      - run: python backend/manage.py migrate
+      - run: python backend/manage.py test study --verbosity 1
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22', cache: npm, cache-dependency-path: frontend/package-lock.json}
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend

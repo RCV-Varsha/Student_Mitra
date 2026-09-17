@@ -1,0 +1,39 @@
+{
+  "run": 1,
+  "mode": "live",
+  "created": "2026-09-17 11:51:04.040984+00:00",
+  "passed": 4,
+  "total": 6,
+  "results": [
+    {
+      "name": "retrieval/page",
+      "passed": true,
+      "detail": "Relevant Calvin cycle evidence includes page 3"
+    },
+    {
+      "name": "tutor/grounding",
+      "passed": true,
+      "detail": "Live answer contains stroma with validated page 3 citation"
+    },
+    {
+      "name": "tutor/unsupported",
+      "passed": false,
+      "detail": "AI provider returned HTTP 503. Check server credentials/quota and retry."
+    },
+    {
+      "name": "assessment/mcq",
+      "passed": true,
+      "detail": "Live structured MCQ validated; deterministic correct-choice grading passed"
+    },
+    {
+      "name": "assessment/open-injection",
+      "passed": false,
+      "detail": "database is locked"
+    },
+    {
+      "name": "recommendation/actionability",
+      "passed": true,
+      "detail": "Evidence-based recommendation names the selected concept and concrete next action"
+    }
+  ]
+}

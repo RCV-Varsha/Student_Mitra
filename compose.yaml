@@ -1,0 +1,47 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: studia
+      POSTGRES_USER: studia
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U studia"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+  migrate:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://studia:${POSTGRES_PASSWORD}@db:5432/studia
+    command: ["sh", "-c", "python manage.py migrate && python manage.py collectstatic --noinput"]
+    volumes: ["static:/app/backend/staticfiles", "media:/app/backend/media"]
+    depends_on:
+      db: {condition: service_healthy}
+  web:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://studia:${POSTGRES_PASSWORD}@db:5432/studia
+    ports: ["127.0.0.1:8000:8000"]
+    volumes: ["static:/app/backend/staticfiles", "media:/app/backend/media"]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    restart: unless-stopped
+  worker:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://studia:${POSTGRES_PASSWORD}@db:5432/studia
+    command: ["python", "manage.py", "worker"]
+    volumes: ["media:/app/backend/media"]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    restart: unless-stopped
+volumes:
+  pgdata:
+  media:
+  static:

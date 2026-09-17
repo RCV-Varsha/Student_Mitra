@@ -1,0 +1,8 @@
+{
+  "passed": [
+    "Registration and empty dashboard",
+    "Create Space and Project"
+  ],
+  "error": "TimeoutError: locator.waitFor: Timeout 180000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText('ready', { exact: true }) to be visible\u001b[22m\n",
+  "consoleErrors": []
+}
