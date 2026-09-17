@@ -1,0 +1,16 @@
+{
+  "commit": "dbfb7fe",
+  "run_url": "https://github.com/RCV-Varsha/Student_Mitra/actions/runs/35250924581",
+  "jobs": [
+    {
+      "name": "backend",
+      "conclusion": "success"
+    },
+    {
+      "name": "frontend",
+      "conclusion": "success"
+    }
+  ],
+  "local_tests": 27,
+  "database": "PostgreSQL 16 + pgvector in CI; SQLite locally"
+}

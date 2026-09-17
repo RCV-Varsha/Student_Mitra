@@ -4,7 +4,7 @@
 
 - Production React/TypeScript build passed, including the final accessible admin labels and accurate unavailable-usage display.
 - **27 deterministic Django tests passed locally.** AI outputs/provider failures are mocked in relevant unit tests; these do not claim live model quality.
-- GitHub CI on clean commit `790b737` passed frontend build and backend tests/migrations on **PostgreSQL 16 with pgvector**. The final expanded suite is also configured to run on publication.
+- GitHub CI on implementation commit `dbfb7fe` passed the frontend build and all **27 backend tests/migrations on PostgreSQL 16 with pgvector**. See `ci-results.json` for the successful run URL and job results.
 - Live Gemini processed the three-page PDF into page-aware chunks and concepts. Real grounded Tutor answers with document/page citations, unsupported-question abstention, adaptive MCQ generation and grading were observed in browser runs.
 - First six-case live evaluation: **4/6 passed**. Two failures involved a transient provider error and concurrent SQLite locking. Follow-up token matching, transaction handling and recovery were repaired. The final attempted live rerun was **3/6**, with remaining provider-dependent cases blocked by HTTP 429 quota exhaustion. Both result files and database evaluation history preserve failures.
 - The provider explicitly reported `generate_content_free_tier_requests`, limit **20**, for `gemini-3.6-flash`. The user instructed development to finish with this blocker documented; no alternate provider was silently used.
