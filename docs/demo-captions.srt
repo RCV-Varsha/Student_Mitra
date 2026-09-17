@@ -1,0 +1,56 @@
+1
+00:00:00,000 --> 00:00:05,000
+Live browser capture - create a Space and Project
+
+2
+00:00:05,000 --> 00:00:31,386
+PDF upload and persistent background processing
+
+3
+00:00:31,386 --> 00:00:36,525
+Real persisted Gemini results - labeled demo material, no fabricated scores
+
+4
+00:00:36,525 --> 00:00:41,590
+Persistent PDF processing - page-aware material is ready
+
+5
+00:00:41,590 --> 00:00:49,623
+Grounded Tutor answer with a verifiable document and page citation
+
+6
+00:00:49,623 --> 00:00:54,735
+Unsupported questions explicitly state insufficient evidence
+
+7
+00:00:54,735 --> 00:01:00,785
+Adaptive MCQ - explanatory feedback and a persisted mastery update
+
+8
+00:01:00,785 --> 00:01:07,828
+Open question is real; further live grading is blocked by Gemini quota
+
+9
+00:01:07,828 --> 00:01:13,896
+Concept mastery, evidence history and actionable next steps
+
+10
+00:01:13,896 --> 00:01:18,941
+Project analytics derive from actual persisted learning events
+
+11
+00:01:18,941 --> 00:01:22,997
+Global analytics aggregate learning activity across projects
+
+12
+00:01:22,997 --> 00:01:28,130
+Responsive mobile layout and working sidebar navigation
+
+13
+00:01:28,130 --> 00:01:33,149
+Admin drill-down - learner activity, assessments, progress and AI usage
+
+14
+00:01:33,149 --> 00:01:39,151
+Jobs, failures and live evaluation results remain inspectable
+

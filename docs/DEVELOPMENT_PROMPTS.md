@@ -53,3 +53,9 @@ These are actual user instructions materially used in this development session. 
 > I didn't understand what do u mean by hosting account
 
 The key is stored only in the ignored local `.env`. Tool execution arguments, terminal commands and authored source are implementation work, not separate user development prompts. Debugging was guided by actual test failures: login CSRF enforcement, local TLS trust, provider model availability, and browser workflow results.
+
+## Final verification constraint
+
+> Finish with the live-AI blocker documented
+
+The user declined further live provider work after the supplied Gemini account reported quota exhaustion. No fallback provider was used.

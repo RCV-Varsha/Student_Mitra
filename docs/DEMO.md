@@ -11,3 +11,7 @@
 9. **Mobile (15s)** - Open sidebar and navigate at 390px width. Show readable cards and contained tables.
 
 `frontend/verify-browser.mjs` automates this workflow against the running local application without mocking AI. Recording is silent and may include provider waiting time. See `VERIFICATION.md` for the actual video outcome.
+
+## Actual recording
+
+`demo.mp4` is an edited, silent recording of real browser operations: initial Space/Project/upload flow and a paced walkthrough of real persisted results. Captions disclose the live open-grading quota blocker. It does not fabricate a completed open assessment. `record-demo.mjs` uses saved results and makes no provider calls; the full live test remains separately available in `verify-browser.mjs`.

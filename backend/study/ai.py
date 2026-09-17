@@ -117,7 +117,12 @@ def generate(project, feature, schema, task, payload, sources=None):
         usage.error = str(e)
         raise
     except httpx.HTTPStatusError as e:
-        usage.error = f'Provider HTTP {e.response.status_code}'
+        try:
+            detail = str(e.response.json().get('error',{}).get('message',''))
+        except (ValueError,AttributeError):
+            detail = ''
+        detail = detail.replace(key,'[REDACTED]') if key else detail
+        usage.error = (f'Provider HTTP {e.response.status_code}: ' + detail)[:300]
         raise AIError(f'AI provider returned HTTP {e.response.status_code}. Check server credentials/quota and retry.') from None
     except Exception:
         usage.error = 'Invalid or incomplete structured AI response'

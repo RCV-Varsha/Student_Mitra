@@ -1,0 +1,14 @@
+{
+  "mode": "real persisted data; no provider calls or network mocks",
+  "created": "2026-09-17T17:00:40.790Z",
+  "passed": [
+    "Home populated from real persisted learning data",
+    "Mastery evidence, growth and recommendations",
+    "Persisted scored feedback survives navigation",
+    "Project charts and usage logs",
+    "Global analytics",
+    "390px mobile home, charts, navigation and contained tables",
+    "Admin user/date/type filtering, assessments, jobs, failures, evaluations and health"
+  ],
+  "consoleErrors": []
+}

@@ -1,0 +1,19 @@
+import {chromium} from '@playwright/test';
+import fs from 'node:fs';
+const browser=await chromium.launch({channel:'chrome',headless:true});
+const context=await browser.newContext({viewport:{width:1440,height:1000},recordVideo:{dir:'test-results/review-video',size:{width:1440,height:1000}}});
+const page=await context.newPage();page.setDefaultTimeout(20000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
+const checks=[];const pass=s=>{checks.push(s);console.log('PASS',s)};
+try {
+ await page.goto('http://127.0.0.1:8000');await page.getByLabel('Username',{exact:true}).fill('demo');await page.getByLabel('Password',{exact:true}).fill(process.env.DEMO_PASSWORD);await page.getByRole('button',{name:'Sign in',exact:true}).click();await page.getByRole('heading',{name:'A good day to learn something.'}).waitFor();
+ await page.screenshot({path:'test-results/home-desktop.png',fullPage:true});pass('Home populated from real persisted learning data');
+ await page.getByRole('button',{name:'Continue learning',exact:true}).click();await page.getByRole('tab',{name:'Growth',exact:true}).click();await page.getByRole('heading',{name:'Mastery evidence over time'}).waitFor();await page.locator('tbody tr').first().waitFor();await page.screenshot({path:'test-results/growth-desktop.png',fullPage:true});pass('Mastery evidence, growth and recommendations');
+ await page.getByRole('tab',{name:'Quiz',exact:true}).click();await page.locator('.history-item').first().waitFor();const scored=page.locator('.history-item').filter({hasText:'100%'}).first();await scored.click();await page.locator('.feedback').waitFor();await page.screenshot({path:'test-results/quiz-desktop.png',fullPage:true});pass('Persisted scored feedback survives navigation');
+ await page.getByRole('tab',{name:'Analytics',exact:true}).click();await page.getByRole('heading',{name:'AI usage & reliability'}).waitFor();await page.screenshot({path:'test-results/analytics-desktop.png',fullPage:true});pass('Project charts and usage logs');
+ await page.getByRole('button',{name:'Global analytics',exact:true}).click();await page.getByRole('heading',{name:'Your learning, at a glance.'}).waitFor();pass('Global analytics');
+ await page.getByRole('button',{name:'Home',exact:true}).click();await page.setViewportSize({width:390,height:844});await page.screenshot({path:'test-results/home-mobile.png',fullPage:true});if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw new Error('Home overflow');
+ await page.getByRole('button',{name:'Open navigation'}).click();await page.getByRole('button',{name:'Global analytics',exact:true}).click();await page.getByRole('heading',{name:'Your learning, at a glance.'}).waitFor();await page.screenshot({path:'test-results/analytics-mobile.png',fullPage:true});if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw new Error('Analytics overflow');pass('390px mobile home, charts, navigation and contained tables');
+ await page.setViewportSize({width:1440,height:1000});await page.getByRole('button',{name:'Admin dashboard',exact:true}).click();await page.getByRole('heading',{name:'Background jobs & failures'}).waitFor();await page.getByLabel('user',{exact:true}).selectOption({label:'demo'});await page.getByLabel('Activity type',{exact:true}).selectOption('assessment_completed');await page.getByLabel('from',{exact:true}).fill('2026-09-01');await page.waitForTimeout(800);await page.screenshot({path:'test-results/admin-desktop.png',fullPage:true});pass('Admin user/date/type filtering, assessments, jobs, failures, evaluations and health');
+ if(errors.length)throw new Error(errors.join('; '));
+ fs.writeFileSync('../docs/browser-persisted-results.json',JSON.stringify({mode:'real persisted data; no provider calls or network mocks',created:new Date().toISOString(),passed:checks,consoleErrors:errors},null,2));
+} finally {await context.close();await browser.close()}

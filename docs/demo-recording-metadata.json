@@ -1,0 +1,65 @@
+{
+  "mainVideo": "demo.mp4",
+  "chapters": [
+    {
+      "time": 0,
+      "text": "Live browser capture - create a Space and Project"
+    },
+    {
+      "time": 5,
+      "text": "PDF upload and persistent background processing"
+    },
+    {
+      "time": 31.386,
+      "text": "Real persisted Gemini results - labeled demo material, no fabricated scores"
+    },
+    {
+      "time": 36.525,
+      "text": "Persistent PDF processing - page-aware material is ready"
+    },
+    {
+      "time": 41.59,
+      "text": "Grounded Tutor answer with a verifiable document and page citation"
+    },
+    {
+      "time": 49.623000000000005,
+      "text": "Unsupported questions explicitly state insufficient evidence"
+    },
+    {
+      "time": 54.735,
+      "text": "Adaptive MCQ - explanatory feedback and a persisted mastery update"
+    },
+    {
+      "time": 60.785,
+      "text": "Open question is real; further live grading is blocked by Gemini quota"
+    },
+    {
+      "time": 67.828,
+      "text": "Concept mastery, evidence history and actionable next steps"
+    },
+    {
+      "time": 73.89699999999999,
+      "text": "Project analytics derive from actual persisted learning events"
+    },
+    {
+      "time": 78.941,
+      "text": "Global analytics aggregate learning activity across projects"
+    },
+    {
+      "time": 82.99799999999999,
+      "text": "Responsive mobile layout and working sidebar navigation"
+    },
+    {
+      "time": 88.13,
+      "text": "Admin drill-down - learner activity, assessments, progress and AI usage"
+    },
+    {
+      "time": 93.149,
+      "text": "Jobs, failures and live evaluation results remain inspectable"
+    }
+  ],
+  "duration": 103.6,
+  "mode": "Real recorded UI. No new provider calls. Open grading blocked by quota.",
+  "edited": true,
+  "note": "30 seconds from the initial live creation/upload recording, followed by a paced real persisted-data walkthrough. Open grading blocked by quota."
+}

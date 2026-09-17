@@ -11,6 +11,8 @@ npm.cmd run build
 Pop-Location
 & .\.venv\Scripts\python.exe backend/manage.py migrate
 & .\.venv\Scripts\python.exe backend/manage.py collectstatic --noinput
+# SQLite WAL is local-only; PostgreSQL requires no journal adjustment.
+& .\.venv\Scripts\python.exe backend/manage.py shell -c "from django.db import connection; connection.cursor().execute('PRAGMA journal_mode=WAL') if connection.vendor == 'sqlite' else None"
 if ($Seed) { & .\.venv\Scripts\python.exe backend/manage.py seed_demo --admin }
 Start-Process -FilePath "$root\.venv\Scripts\python.exe" -ArgumentList @('backend/manage.py','worker') -WorkingDirectory $root -WindowStyle Hidden -RedirectStandardOutput "$root\worker.log" -RedirectStandardError "$root\worker-error.log"
 & .\.venv\Scripts\python.exe backend/manage.py runserver 127.0.0.1:8000 --noreload

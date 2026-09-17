@@ -165,3 +165,25 @@ class LearningTests(TestCase):
         from study.exceptions import api_exception_handler
         r=api_exception_handler(OperationalError('private database address'),{})
         self.assertEqual(r.status_code,503);self.assertNotIn('private database address',str(r.data))
+
+    def test_admin_filters_scope_activity_and_jobs(self):
+        self.user.is_staff=True;self.user.save()
+        event(self.p,'project_viewed','admin-filter-one')
+        event(self.foreign,'project_viewed','admin-filter-two')
+        Job.objects.create(material=self.m,owner=self.user,available=timezone.now())
+        r=self.client.get('/api/admin/',{'user':self.other.id,'type':'project_viewed'})
+        self.assertEqual(r.status_code,200);self.assertEqual(r.json()['events'],1)
+        self.assertEqual(r.json()['jobs'],[])
+        self.assertTrue(all(p['space__owner_id']==self.other.id for p in r.json()['project_list']))
+        r=self.client.get('/api/admin/',{'from':'2099-01-01'})
+        self.assertEqual(r.json()['events'],0);self.assertEqual(r.json()['jobs'],[])
+        self.assertEqual(self.client.get('/api/admin/',{'from':'not-a-date'}).status_code,400)
+
+    @patch('study.ai.httpx.post')
+    @override_settings(AI_PROVIDER='openai')
+    def test_provider_error_logs_redact_key(self,mock):
+        import httpx,os
+        mock.return_value=httpx.Response(400,json={'error':{'message':'Rejected super-secret-test-key'}},request=httpx.Request('POST','https://api.openai.com/v1/chat/completions'))
+        with patch.dict(os.environ,{'OPENAI_API_KEY':'super-secret-test-key'}):
+            with self.assertRaises(AIError):generate(self.p,'test',TutorOutput,'test',{})
+        u=AIUsage.objects.latest('id');self.assertFalse(u.success);self.assertNotIn('super-secret-test-key',u.error);self.assertIn('[REDACTED]',u.error)

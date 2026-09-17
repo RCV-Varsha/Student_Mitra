@@ -1,15 +1,19 @@
 # Must Have checklist
 
-- [ ] Auth, roles, ownership, project isolation
-- [ ] Spaces/projects and responsive navigation
-- [ ] Persistent PDF processing, concepts, page retrieval, retries
-- [ ] Grounded Tutor, citations, compact learning context
-- [ ] Adaptive MCQ/open assessment, validated grading
-- [ ] Mastery evidence, trends, recommendations
-- [ ] Idempotent events, project/global/admin analytics
-- [ ] Controlled AI tools, usage/failure observability
-- [ ] Automated tests, repeatable evaluation, browser verification
-- [ ] Deployment configuration, migrations, locks, seed, documentation
-- [ ] Public deployment/repository and demo recording
+- [x] Authentication, roles, ownership and project isolation
+- [x] Spaces/projects and responsive project navigation
+- [x] Persistent PDF jobs, pages, concepts, retrieval, failure/retry handling
+- [x] Grounded Tutor, validated citations, bounded persistent context
+- [x] Adaptive MCQ/open question implementation and validated rubric grading
+- [x] Mastery evidence, growth, strengths/weaknesses and actionable recommendations
+- [x] Idempotent learning events, project/global/admin analytics and filters
+- [x] Controlled AI tools, usage/latency/cost/failure observability
+- [x] 27 local tests; PostgreSQL/pgvector CI; repeatable live evaluation with honest results
+- [x] Desktop/mobile visual review and persisted-data browser/admin workflow
+- [x] Migrations, dependency locks, seed, deployment configuration and mandatory documentation
+- [x] Secret-scanned public GitHub source
+- [x] Recorded partial demo with explicit AI quota limitation
+- [ ] Full successful live open-ended learning-loop verification: Gemini quota exhausted; user accepted documented blocker
+- [ ] Public application URL: hosting account/deployment credentials not supplied
 
-Scope: PDF v3 Must Have and mandatory submission items plus explicit user acceptance requirements. No optional features.
+Scope: PRD v3 Must Have, mandatory submission items, and explicit user requirements. No Should Have or Nice to Have expansion. See VERIFICATION.md for the limits of each claim.

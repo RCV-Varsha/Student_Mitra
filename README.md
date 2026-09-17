@@ -2,6 +2,10 @@
 
 A focused study workspace with private Spaces/Projects, PDF evidence, a grounded AI Tutor, adaptive practice, mastery estimates, and operational analytics. Implements the supplied PRD's Must Have scope and explicit user requirements.
 
+[View the recorded demo](docs/demo.mp4) · [Verification and blockers](docs/VERIFICATION.md)
+
+![Studia home dashboard](docs/screenshots/home-desktop.png)
+
 ## Run locally
 
 Requirements: Python 3.12+, Node 22+, and PostgreSQL 16+ with pgvector for the deployment path. A SQLite fallback is available for local development and smoke tests only.

@@ -1,8 +1,8 @@
 {
-  "run": 1,
+  "run": 2,
   "mode": "live",
-  "created": "2026-09-17 11:51:04.040984+00:00",
-  "passed": 4,
+  "created": "2026-09-17 16:56:06.112256+00:00",
+  "passed": 3,
   "total": 6,
   "results": [
     {
@@ -12,23 +12,23 @@
     },
     {
       "name": "tutor/grounding",
-      "passed": true,
-      "detail": "Live answer contains stroma with validated page 3 citation"
+      "passed": false,
+      "detail": "AI provider returned HTTP 429. Check server credentials/quota and retry."
     },
     {
       "name": "tutor/unsupported",
-      "passed": false,
-      "detail": "AI provider returned HTTP 503. Check server credentials/quota and retry."
+      "passed": true,
+      "detail": "Abstained without invented citations; retrieval gate, no model needed"
     },
     {
       "name": "assessment/mcq",
-      "passed": true,
-      "detail": "Live structured MCQ validated; deterministic correct-choice grading passed"
+      "passed": false,
+      "detail": "AI provider returned HTTP 429. Check server credentials/quota and retry."
     },
     {
       "name": "assessment/open-injection",
       "passed": false,
-      "detail": "database is locked"
+      "detail": "AI provider returned HTTP 429. Check server credentials/quota and retry."
     },
     {
       "name": "recommendation/actionability",

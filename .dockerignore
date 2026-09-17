@@ -11,3 +11,4 @@ backend/staticfiles
 .npm-cache
 test-results
 __pycache__
+**/*.sqlite3*
