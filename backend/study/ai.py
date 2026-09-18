@@ -1,4 +1,7 @@
-import json, os, time, ssl
+import json, os, time, ssl, re
+from contextvars import ContextVar
+from .providers import provider_for
+stream_callback = ContextVar("stream_callback", default=None)
 from typing import Literal
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -56,23 +59,39 @@ Return only data matching the JSON schema.'''
 def generate(project, feature, schema, task, payload, sources=None):
     start = time.monotonic()
     usage = AIUsage.objects.create(project=project,feature=feature,model=settings.AI_MODEL,sources=sources or [])
+    key = None
     try:
-        gemini = settings.AI_PROVIDER == 'gemini'
-        key = os.environ.get('GEMINI_API_KEY' if gemini else 'OPENAI_API_KEY')
-        if not key:
-            raise AIError('AI is not configured. Set the provider API key on the server, then retry.')
-        if gemini:
-            endpoint = f'https://generativelanguage.googleapis.com/v1beta/models/{settings.AI_MODEL}:generateContent'
-            headers = {'x-goog-api-key':key}
-            body = {'systemInstruction':{'parts':[{'text':SYSTEM + '\nSERVER TASK: ' + task}]},'contents':[{'role':'user','parts':[{'text':json.dumps(payload)}]}], 'generationConfig':{'responseMimeType':'application/json','responseJsonSchema':schema.model_json_schema(),'maxOutputTokens':6000}}
-        else:
-            endpoint = 'https://api.openai.com/v1/chat/completions'
-            headers = {'Authorization':f'Bearer {key}'}
-            body = {'model':settings.AI_MODEL,'messages':[{'role':'system','content':SYSTEM + '\nSERVER TASK: ' + task},{'role':'user','content':json.dumps(payload)}], 'response_format':{'type':'json_schema','json_schema':{'name':schema.__name__,'strict':True,'schema':schema.model_json_schema()}},'max_completion_tokens':3500}
+        provider = provider_for(settings.AI_PROVIDER)
+        key = os.environ.get(provider.key_name)
+        if not key: raise AIError('AI is not configured. Set the provider API key on the server, then retry.')
+        callback = stream_callback.get() if feature == 'tutor' else None
+        endpoint,headers,body = provider.request(key,SYSTEM+'\nSERVER TASK: '+task,schema,payload,bool(callback))
+        usage.spans = [{'stage':'request','provider':settings.AI_PROVIDER,'schema':schema.__name__,'source_count':len(sources or []),'prompt_version':'study-v2'}]
         response = None
         for attempt in range(3):
             try:
+                attempt_start = time.monotonic()
+                if callback:
+                    content = ''
+                    with httpx.stream('POST',endpoint,headers=headers,timeout=45,json=body,verify=ssl.create_default_context()) as response:
+                        response.read() if response.is_error else None
+                        response.raise_for_status()
+                        for line in response.iter_lines():
+                            if not line.startswith('data:'): continue
+                            raw = line[5:].strip()
+                            if raw == '[DONE]': break
+                            part,ins,outs = provider.parse(json.loads(raw),True)
+                            content += part
+                            usage.input_tokens = max(usage.input_tokens,ins)
+                            usage.output_tokens = max(usage.output_tokens,outs)
+                            match = re.search(r'"answer"\s*:\s*"((?:[^"\\]|\\.)*)',content)
+                            if match:
+                                try: callback(json.loads('"'+match.group(1)+'"'))
+                                except (ValueError,TypeError): pass
+                    usage.spans.append({'stage':'provider','attempt':attempt+1,'status':response.status_code,'latency_ms':int((time.monotonic()-attempt_start)*1000)})
+                    break
                 response = httpx.post(endpoint, headers=headers, timeout=45, json=body, verify=ssl.create_default_context())
+                usage.spans.append({'stage':'provider','attempt':attempt+1,'status':response.status_code,'latency_ms':int((time.monotonic()-attempt_start)*1000)})
                 if response.status_code in [429,500,502,503,504] and attempt < 2:
                     delay = 2 ** attempt
                     if response.status_code == 429:
@@ -88,12 +107,9 @@ def generate(project, feature, schema, task, payload, sources=None):
             except (httpx.TimeoutException,httpx.ConnectError):
                 if attempt == 2: raise AIError('AI request timed out or could not connect. Please retry.')
                 time.sleep(2 ** attempt)
-        data = response.json()
-        tokens = data.get('usageMetadata' if gemini else 'usage',{})
-        usage.input_tokens = tokens.get('promptTokenCount' if gemini else 'prompt_tokens',0)
-        usage.output_tokens = tokens.get('candidatesTokenCount' if gemini else 'completion_tokens',0) + (tokens.get('thoughtsTokenCount',0) if gemini else 0)
+        if not callback:
+            content,usage.input_tokens,usage.output_tokens = provider.parse(response.json())
         usage.estimated_cost = (usage.input_tokens*settings.AI_INPUT_PRICE + usage.output_tokens*settings.AI_OUTPUT_PRICE)/1e6
-        content = ''.join(p.get('text','') for p in data['candidates'][0]['content']['parts']) if gemini else data['choices'][0]['message']['content']
         result = schema.model_validate_json(content)
         # Semantic checks are part of the logged operation, not merely JSON parsing.
         from .models import Chunk
@@ -111,6 +127,7 @@ def generate(project, feature, schema, task, payload, sources=None):
             raise AIError('Grading did not match the supplied rubric.')
         if isinstance(result,ConceptsOutput) and any(c.chunk_id not in (sources or []) for c in result.concepts):
             raise AIError('Invalid concept source reference.')
+        usage.spans.append({"stage":"validation","status":"passed","source_ids":sources or []})
         usage.success = True
         return result
     except AIError as e:
@@ -128,6 +145,8 @@ def generate(project, feature, schema, task, payload, sources=None):
         usage.error = 'Invalid or incomplete structured AI response'
         raise AIError('The AI returned an invalid response. Nothing was scored; please retry.') from None
     finally:
+        usage.estimated_cost = (usage.input_tokens*settings.AI_INPUT_PRICE + usage.output_tokens*settings.AI_OUTPUT_PRICE)/1e6
+        usage.spans.append({"stage":"complete","status":"success" if usage.success else "failed"})
         usage.latency_ms = int((time.monotonic()-start)*1000)
         usage.save()
 

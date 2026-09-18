@@ -17,9 +17,14 @@ class ProjectSerializer(serializers.ModelSerializer):
 
 class MaterialSerializer(serializers.ModelSerializer):
     attempts = serializers.IntegerField(source='job.attempts',read_only=True)
+    retry_at = serializers.DateTimeField(source='job.available',read_only=True)
+    stage = serializers.SerializerMethodField()
+    def get_stage(self,obj):
+        return 'complete' if obj.status == 'ready' else obj.job.stage
+    history = serializers.JSONField(source='job.history',read_only=True)
     class Meta:
         model = Material
-        fields = ['id','project','name','status','pages','warning','created','attempts']
+        fields = ['id','project','name','status','pages','warning','created','attempts','retry_at','stage','history','structure']
 
 class ConceptSerializer(serializers.ModelSerializer):
     class Meta:

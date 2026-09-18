@@ -50,7 +50,7 @@ npm run build
 node verify-browser.mjs
 ```
 
-Backend tests use mocked AI outputs where indicated. The live evaluation performs real provider calls against the labeled demo project, persists results for the admin dashboard, and writes `docs/evaluation-results.json`. Browser tests use real HTTP and AI calls, with no network mocks. Chrome must be installed, or change the Playwright launch channel. Set `RECORD_VIDEO=1` to record if Playwright's FFmpeg is available.
+Backend tests use mocked AI outputs where indicated. The live evaluation performs real provider calls against the labeled demo project, persists results for the admin dashboard, and writes `docs/evaluation-results.json`. The full learning-loop browser test uses real HTTP and AI calls, with no network mocks. Chrome must be installed, or change the Playwright launch channel. Set `RECORD_VIDEO=1` to record if Playwright's FFmpeg is available.
 
 `docs/evaluation-cases.json` describes the repeatable six-case evaluation. Evaluation actions are real, persisted activity in the demo project. Browser verification creates a separate clearly named verification workspace.
 
@@ -65,3 +65,18 @@ Backend tests use mocked AI outputs where indicated. The live evaluation perform
 - AI calls record model, feature, latency, provider token usage, configured cost estimates, failures and retrieved chunk references.
 
 Read `docs/ARCHITECTURE.md`, `docs/AI_USAGE.md`, `docs/DEVELOPMENT_PROMPTS.md`, `docs/VERIFICATION.md`, and `docs/DEMO.md` for submission details and limitations.
+
+## Should Have features
+
+The page-20 scope is implemented: streaming Tutor drafts with validated final answers, layout/table extraction, assessment breakdowns, saved Tutor topic memory, background evidence-based insights, retrieval caching, AI trace inspection, Gemini/OpenAI adapters, automated regression evaluation and checkpointed retries. See [the checklist](docs/CHECKLIST.md) and [architecture](docs/ARCHITECTURE.md) for precise scope. OCR and image interpretation are not included.
+
+After upgrading, run migrations and restart both the web process and worker. Previously processed PDFs retain their existing extraction; newly processed documents use layout/table extraction.
+
+```powershell
+.venv/Scripts/python.exe backend/manage.py migrate
+.venv/Scripts/python.exe backend/manage.py evaluate_regression
+cd frontend
+node verify-should.mjs
+```
+
+The browser script uses the demo password from the ignored local `.env` and an installed Chrome. It exercises real persisted data and unsupported-question streaming without a provider call. Full live streaming verification remains blocked by the accepted Gemini quota limit; public hosting access is still missing.

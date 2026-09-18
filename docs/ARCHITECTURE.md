@@ -31,7 +31,7 @@ AI tools are allowlisted, strictly typed requests: search_materials, learning_st
 
 ## Retrieval
 
-Page-aware overlapping chunks contain 330 words at a 270-word stride. A 256-dimensional signed token-hashing representation is persisted in pgvector; PostgreSQL cosine distance retrieves candidates, then lexical overlap ranks and gates them. This deliberately uses a deterministic sparse-style representation, not a falsely labeled semantic embedding model. The local SQLite path uses the same lexical gate over at most 3,000 chunks. Candidate retrieval is project-scoped before ranking. Source IDs and exact contiguous quotations must match retrieved chunks before being returned. This verifies provenance, not the logical entailment of every generated sentence; the small live evaluation checks a known grounded answer.
+Page-aware layout chunks preserve line spacing up to roughly 2,200 characters; extracted tables receive separate chunks of up to 4,000 characters. A 256-dimensional signed token-hashing representation is persisted in pgvector; PostgreSQL cosine distance retrieves candidates, then lexical overlap ranks and gates them. This deliberately uses a deterministic sparse-style representation, not a falsely labeled semantic embedding model. The local SQLite path uses the same lexical gate over at most 3,000 chunks. Candidate retrieval is project-scoped before ranking. Source IDs and exact contiguous quotations must match retrieved chunks before being returned. This verifies provenance, not the logical entailment of every generated sentence; the small live evaluation checks a known grounded answer.
 
 ## Jobs and events
 
@@ -48,3 +48,32 @@ Open-ended grading requires the exact rubric criteria, bounded per-criterion sco
 ## Reliability and limits
 
 The provider adapter uses TLS verification, timeouts, three bounded attempts on transient errors, Pydantic schemas and explicit failure responses. Production runs behind HTTPS with secure cookies. Settings reject missing production secrets. Per-user/anonymous throttling is a prototype safeguard, not a distributed abuse prevention system. Results are bounded; full cursor pagination and distributed throttling are future scaling work, not implemented features.
+
+## Should Have architecture extension
+
+```mermaid
+flowchart LR
+  TutorUI -->|POST SSE| Stream[Authenticated stream endpoint]
+  Stream --> Cache[Project + material revision retrieval cache]
+  Stream --> Memory[Persistent bounded topic and page memory]
+  Stream --> Adapter[Gemini / OpenAI adapter]
+  Adapter --> Draft[Provisional unvalidated draft]
+  Adapter --> Validation[Schema and exact source validation]
+  Validation --> Message[Persisted final answer]
+  Adapter --> Trace[Usage record + attempt and validation spans]
+  PDFWorker --> Layout[Layout text / tables / page structure]
+  Layout --> Checkpoint[Durable extraction checkpoint]
+  Assessment --> InsightJob[Deduplicated insight job]
+  InsightJob --> Worker[Persistent worker / bounded retry]
+  Worker --> Snapshot[Evidence-backed insight snapshot]
+```
+
+Streaming runs provider work in a bounded pool (four active streams per process) and emits SSE drafts. Drafts are visibly provisional, never stored as final answers, and removed on errors. Final citations undergo the same validation as nonstreaming answers. Disconnects do not cancel work; replaying a completed request key recovers the saved answer. Simultaneous duplicates may still perform redundant provider calls, while database constraints keep final messages/events unique. This prototype uses WSGI streaming; deploy enough workers for long-lived responses.
+
+Retrieval cache keys hash project-local material IDs/digests/status, query, limit and retrieval version. Hits recheck ready-material ownership; successful processing invalidates project entries. Entries expire after ten minutes and the worker removes expired rows. No generated-answer cache or cross-user cache exists.
+
+Tutor memory is deterministic and extractive: last eight short questions, up to twelve cited document/page labels and turn count, plus existing assessment context. It is treated as untrusted context, not evidence or instructions. No provider-generated summary is claimed.
+
+Insight jobs are deduplicated by project/revision. The worker compares the latest five assessment scores with the previous five and counts missing concepts over up to forty attempts. It saves the evidence IDs and method. Lease fencing and three-attempt budgets protect PDF and insight jobs; PDF extraction is checkpointed before provider concept extraction. PDFs with images or scans remain explicitly unsupported for visual interpretation/OCR. Table extraction works best with clearly ruled digital tables; complex layouts may require source review.
+
+AI trace rows include a correlation UUID, provider/schema/prompt version, attempt status/latency, retrieved source IDs and validation outcome. They intentionally omit raw prompts, document bodies, credentials and reasoning traces. Analytics groups concepts by IDs as well as display names, preventing same-name projects from merging.

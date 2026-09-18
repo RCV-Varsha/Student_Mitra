@@ -30,6 +30,7 @@ class Material(models.Model):
     status = models.CharField(max_length=20, default='queued')
     pages = models.PositiveIntegerField(default=0)
     warning = models.TextField(blank=True)
+    structure = models.JSONField(default=dict)
     created = models.DateTimeField(auto_now_add=True)
     class Meta:
         constraints = [models.UniqueConstraint(fields=['project','digest'],name='unique_project_document')]
@@ -61,6 +62,8 @@ class Job(models.Model):
     status = models.CharField(max_length=20,default='queued',db_index=True)
     attempts = models.PositiveIntegerField(default=0)
     error = models.TextField(blank=True)
+    stage = models.CharField(max_length=30, default='extraction')
+    history = models.JSONField(default=list)
     lease = models.UUIDField(null=True)
     available = models.DateTimeField()
     updated = models.DateTimeField(auto_now=True)
@@ -135,6 +138,8 @@ class AIUsage(models.Model):
     error = models.CharField(max_length=300,blank=True)
     sources = models.JSONField(default=list)
     created = models.DateTimeField(auto_now_add=True)
+    trace_id = models.UUIDField(default=uuid.uuid4, db_index=True)
+    spans = models.JSONField(default=list)
 
 class Evaluation(models.Model):
     mode = models.CharField(max_length=20)
@@ -142,3 +147,24 @@ class Evaluation(models.Model):
     passed = models.PositiveIntegerField(default=0)
     total = models.PositiveIntegerField(default=0)
     created = models.DateTimeField(auto_now_add=True)
+
+class RetrievalCache(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    key = models.CharField(max_length=64)
+    chunk_ids = models.JSONField(default=list)
+    expires = models.DateTimeField(db_index=True)
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['project', 'key'], name='unique_retrieval_cache')]
+
+class InsightJob(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='insight_jobs')
+    revision = models.CharField(max_length=100)
+    status = models.CharField(max_length=20, default='queued', db_index=True)
+    attempts = models.PositiveIntegerField(default=0)
+    lease = models.UUIDField(null=True)
+    available = models.DateTimeField()
+    updated = models.DateTimeField(auto_now=True)
+    error = models.CharField(max_length=300, blank=True)
+    result = models.JSONField(default=dict)
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['project', 'revision'], name='unique_insight_revision')]

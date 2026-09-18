@@ -59,3 +59,9 @@ The key is stored only in the ignored local `.env`. Tool execution arguments, te
 > Finish with the live-AI blocker documented
 
 The user declined further live provider work after the supplied Gemini account reported quota exhaustion. No fallback provider was used.
+
+## Should Have scope extension
+
+> Let's have "should have" things also from the given document
+
+Implemented the ten Should Have items on PDF page 20. The existing no-further-live-AI constraint remains in force. No subagents were used.

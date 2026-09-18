@@ -21,3 +21,9 @@ The repeatable dataset is the three-page demo PDF. The six curated cases cover r
 Unit tests mock generated outputs and provider failures to test security, schema rejection, permission boundaries, idempotency, adaptive behavior, mastery, job claims/failures/retries and structured-output logging deterministically. They are explicitly separate from live Gemini evaluation and the unmocked browser workflow. See `VERIFICATION.md` for actual runs.
 
 Implementation references: [OpenAI structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs), [Gemini structured outputs](https://ai.google.dev/gemini-api/docs/generate-content/structured-output), [Django deployment](https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/).
+
+## Should Have verification boundary
+
+Gemini and OpenAI now implement a shared request/parse adapter contract, including SSE. No new live provider requests were made for this extension. Streaming adapter checks use explicit response fixtures; the browser exercised real SSE only for a retrieval-unsupported question that requires no provider. Background insights and persistent topic memory are deterministic calculations, not AI-generated results.
+
+Run `python backend/manage.py evaluate_regression` for isolated fixture regression evaluation. It persists an evaluation record and writes `docs/regression-results.json`; CI uploads this result. The original six-case `evaluate_ai` command remains opt-in and consumes real provider quota.

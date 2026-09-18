@@ -1,6 +1,6 @@
 import uuid
 from datetime import timedelta
-from pypdf import PdfReader
+from .documents import extract_document
 from django.db import transaction
 from django.utils import timezone
 from .models import *
@@ -10,7 +10,11 @@ from .learning import vector, evidence, event, refresh_context
 def claim_job():
     now = timezone.now()
     # Compare-and-swap fences concurrent workers, including local SQLite tests.
-    Job.objects.filter(status='processing',updated__lt=now-timedelta(minutes=10)).update(status='queued',lease=None,available=now,error='Expired lease recovered')
+    stale = Job.objects.filter(status='processing',updated__lt=now-timedelta(minutes=10))
+    exhausted = list(stale.filter(attempts__gte=3).values_list('material_id',flat=True))
+    stale.filter(attempts__gte=3).update(status='failed',lease=None,error='Worker lease expired after 3 attempts. Retry manually.',updated=now)
+    Material.objects.filter(id__in=exhausted).update(status='failed',warning='Worker interrupted repeatedly. Retry processing.')
+    stale.filter(attempts__lt=3).update(status='queued',lease=None,available=now,error='Expired lease recovered')
     for id in Job.objects.filter(status='queued',available__lte=now).values_list('id',flat=True)[:20]:
         lease = uuid.uuid4()
         from django.db.models import F
@@ -25,26 +29,17 @@ def process_job(job):
     project = material.project
     try:
         if project.space.owner_id != job.owner_id: raise ValueError('Job ownership mismatch')
-        reader = PdfReader(material.file.path)
-        if reader.is_encrypted: raise ValueError('Encrypted PDFs are unsupported. Upload an unlocked PDF.')
-        if len(reader.pages)>200: raise ValueError('PDF exceeds the 200-page prototype limit.')
-        extracted, scanned = [],[]
-        for page_no,page in enumerate(reader.pages,1):
-            text = (page.extract_text() or '').strip()
-            if len(text)<40:
-                scanned.append(page_no)
-                continue
-            words = text.split()
-            for ordinal,start in enumerate(range(0,len(words),270)):
-                part = ' '.join(words[start:start+330])
-                extracted.append((page_no,ordinal,part))
-        if not extracted: raise ValueError('No extractable text. Scanned/image-only PDFs need OCR before upload; OCR is not supported.')
-        with transaction.atomic():
-            current = Job.objects.select_for_update().get(id=job.id)
-            if current.lease != job.lease: return
-            # Stable chunk IDs on retries preserve evidence references.
-            for page,ordinal,text in extracted:
-                Chunk.objects.update_or_create(material=material,page=page,ordinal=ordinal,defaults={'text':text,'embedding':vector(text)})
+        if not material.structure or not material.chunks.exists():
+            extracted, structure = extract_document(material.file.path)
+            with transaction.atomic():
+                current = Job.objects.select_for_update().get(id=job.id)
+                if current.lease != job.lease: return
+                for page,ordinal,text in extracted:
+                    Chunk.objects.update_or_create(material=material,page=page,ordinal=ordinal,defaults={'text':text,'embedding':vector(text)})
+                material.structure,material.pages = structure,len(structure['pages'])
+                material.save(update_fields=['structure','pages'])
+                current.stage = 'concepts'
+                current.save(update_fields=['stage','updated'])
         chunks = list(material.chunks.select_related('material').order_by('page','ordinal'))
         # Sample across the document within a bounded model context.
         selected = chunks if len(chunks)<=24 else [chunks[int(i*(len(chunks)-1)/23)] for i in range(24)]
@@ -56,13 +51,19 @@ def process_job(job):
             if current.lease != job.lease: return
             for c in output.concepts:
                 Concept.objects.get_or_create(project=project,name=c.name,defaults={'description':c.description,'source_id':c.chunk_id})
-            material.status,material.pages = 'ready',len(reader.pages)
-            material.warning = ('No extractable text on pages '+', '.join(map(str,scanned))+'. Images/diagrams are not interpreted.') if scanned else 'Text extracted. Images and diagrams are not interpreted.'
+            material.status = 'ready'
+            scanned = material.structure.get('unsupported_pages',[])
+            material.warning = ('No extractable text on pages '+', '.join(map(str,scanned))+'. ' if scanned else '') + f"Layout and {material.structure.get('table_count',0)} tables extracted. Images/diagrams are not interpreted; scanned pages require OCR before upload."
             material.save()
+            current.stage = 'complete'
+            current.history = (current.history + [{'attempt':job.attempts,'status':'ready','at':timezone.now().isoformat()}])[-12:]
             current.status,current.error,current.lease = 'ready','',None
             current.save()
             event(project,'material_processed',f'processed:{material.id}',{'pages':material.pages})
             refresh_context(project)
+            RetrievalCache.objects.filter(project=project).delete()
+            from .insights import enqueue_insights
+            enqueue_insights(project,f'material:{material.id}')
     except Exception as e:
         # Do not leak provider bodies, credentials, paths or parser traces.
         message = str(e)[:300] if isinstance(e,(ValueError,AIError)) else 'PDF processing failed. Check the PDF is valid and retry.'
@@ -71,6 +72,7 @@ def process_job(job):
             current = Job.objects.select_for_update().get(id=job.id)
             if current.lease != job.lease: return
             current.status = 'queued' if retry else 'failed'
+            current.history = (current.history + [{'attempt':job.attempts,'status':'retry' if retry else 'failed','stage':current.stage,'error':message,'at':timezone.now().isoformat()}])[-12:]
             current.error,current.lease = message,None
             current.available = timezone.now()+timedelta(seconds=10*2**job.attempts)
             current.save()

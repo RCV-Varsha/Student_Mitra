@@ -1,0 +1,13 @@
+{
+  "mode": "real persisted data; no provider requests or network mocks",
+  "passed": [
+    "Real SSE unsupported response without a provider call",
+    "Persistent Tutor memory survives reload",
+    "Persisted background insight job and computed comparison",
+    "Assessment breakdown and trace inspection",
+    "390px analytics and insights layout",
+    "Admin background insight jobs and user filter"
+  ],
+  "consoleErrors": [],
+  "created": "2026-09-18T10:14:59.715Z"
+}

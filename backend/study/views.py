@@ -180,12 +180,13 @@ def analytics_data(projects, params):
             events,assessments,usage = events.filter(**{lookup:val}),assessments.filter(**{lookup:val}),usage.filter(**{lookup:val})
     if params.get('type'): events = events.filter(kind=params['type'])
     concepts = Concept.objects.filter(project__in=projects)
-    return {'projects':projects.count(),'materials':Material.objects.filter(project__in=projects,status='ready').count(),'events':events.count(),'assessments':assessments.count(),'average_score':assessments.aggregate(v=Avg('score'))['v'],'mastery':concepts.filter(evidence_count__gt=0).aggregate(v=Avg('mastery'))['v'],'assessed_concepts':concepts.filter(evidence_count__gt=0).count(),'concepts':concepts.count(),'attention':ConceptSerializer(concepts.filter(evidence_count__gt=0,mastery__lt=.6).order_by('mastery')[:8],many=True).data,
+    breakdown = list(assessments.values('question__concept_id','question__project_id','question__concept__name','question__project__name','question__kind','question__difficulty').annotate(attempts=Count('id'),score=Avg('score')).order_by('-attempts')[:50])
+    return {'breakdown':breakdown,'projects':projects.count(),'materials':Material.objects.filter(project__in=projects,status='ready').count(),'events':events.count(),'assessments':assessments.count(),'average_score':assessments.aggregate(v=Avg('score'))['v'],'mastery':concepts.filter(evidence_count__gt=0).aggregate(v=Avg('mastery'))['v'],'assessed_concepts':concepts.filter(evidence_count__gt=0).count(),'concepts':concepts.count(),'attention':ConceptSerializer(concepts.filter(evidence_count__gt=0,mastery__lt=.6).order_by('mastery')[:8],many=True).data,
       'activity':list(events.annotate(day=TruncDate('created')).values('day').annotate(count=Count('id')).order_by('day')),
       'performance':list(assessments.annotate(day=TruncDate('created')).values('day').annotate(score=Avg('score')).order_by('day')),
       'usage':{'calls':usage.count(),'failed':usage.filter(success=False).count(),**usage.aggregate(input_tokens=Sum('input_tokens'),output_tokens=Sum('output_tokens'),estimated_cost=Sum('estimated_cost'),latency_ms=Avg('latency_ms'))},
       'recent_events':list(events.order_by('-created').values('id','kind','project_id','project__name','project__space__owner__username','data','created')[:100]),
-      'usage_log':list(usage.order_by('-created').values('id','feature','model','latency_ms','input_tokens','output_tokens','estimated_cost','success','error','sources','created')[:50])}
+      'usage_log':list(usage.order_by('-created').values('id','feature','model','latency_ms','input_tokens','output_tokens','estimated_cost','success','error','sources','created','trace_id','spans')[:50])}
 
 @api_view(['GET'])
 def analytics(request,pk=None):
@@ -211,7 +212,7 @@ def admin_dashboard(request):
         if value:
             assessment_rows = assessment_rows.filter(**{f'created__date__{lookup}':value})
             job_rows = job_rows.filter(**{f'updated__date__{lookup}':value})
-    data.update({'users':list(get_user_model().objects.values('id','username','is_staff','date_joined','last_login')),'spaces':list(Space.objects.values('id','name','owner_id')),'project_list':list(ps.values('id','name','space_id','space__owner_id')),'assessments_log':AssessmentSerializer(assessment_rows.select_related('question__concept').order_by('-created')[:100],many=True).data,'jobs':list(job_rows.values('id','status','attempts','error','updated','material__name','material__project_id','owner_id')),'evaluations':list(Evaluation.objects.order_by('-created').values()[:10]),'health':{'database':connection.vendor,'worker':'healthy' if heartbeat and heartbeat.updated>timezone.now()-timedelta(minutes=3) else 'offline or stale','worker_last_seen':heartbeat.updated if heartbeat else None,'ai_configured':bool(__import__('os').getenv('OPENAI_API_KEY') or __import__('os').getenv('GEMINI_API_KEY'))}})
+    data.update({'users':list(get_user_model().objects.values('id','username','is_staff','date_joined','last_login')),'spaces':list(Space.objects.values('id','name','owner_id')),'project_list':list(ps.values('id','name','space_id','space__owner_id')),'assessments_log':AssessmentSerializer(assessment_rows.select_related('question__concept').order_by('-created')[:100],many=True).data,'jobs':list(job_rows.values('id','status','attempts','error','updated','available','material__name','material__project_id','owner_id')),'insight_jobs':list(InsightJob.objects.filter(project__in=ps).order_by('-updated').values('id','project_id','status','attempts','error','available','updated')[:100]),'evaluations':list(Evaluation.objects.order_by('-created').values()[:10]),'health':{'database':connection.vendor,'worker':'healthy' if heartbeat and heartbeat.updated>timezone.now()-timedelta(minutes=3) else 'offline or stale','worker_last_seen':heartbeat.updated if heartbeat else None,'ai_configured':bool(__import__('os').getenv('OPENAI_API_KEY') or __import__('os').getenv('GEMINI_API_KEY'))}})
     return Response(data)
 
 @api_view(['GET'])
@@ -223,3 +224,15 @@ def health(request):
 def frontend(request):
     path = settings.BASE_DIR.parent/'frontend/dist/index.html'
     return HttpResponse(path.read_text(encoding='utf-8') if path.exists() else 'Build frontend with npm run build.',content_type='text/html')
+
+@api_view(['GET','POST'])
+def insights(request,pk):
+    p = owned(request.user,pk)
+    if request.method == 'POST':
+        from .insights import enqueue_insights
+        latest = Assessment.objects.filter(question__project=p).order_by('-id').first()
+        revision = f'manual:{latest.id if latest else 0}'
+        job = enqueue_insights(p,revision)
+        InsightJob.objects.filter(id=job.id,status='failed').update(status='queued',attempts=0,error='',available=timezone.now())
+    job = p.insight_jobs.order_by('-id').first()
+    return Response({'insights':p.context.get('insights'), 'job':{'id':job.id,'status':job.status,'attempts':job.attempts,'error':job.error,'available':job.available} if job else None})

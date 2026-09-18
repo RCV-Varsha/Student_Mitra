@@ -38,6 +38,19 @@ def execute_tool(user, request):
     return list(Assessment.objects.filter(question__project=p).order_by('-created').values('score','missing','feedback')[:8])
 
 def retrieve(project, query, limit=5):
+    # Cache only retrieval IDs, never generated answers. Scope and revision prevent reuse
+    # across projects or changed material; every hit rechecks ready-material ownership.
+    revision = list(project.materials.order_by('id').values_list('id','digest','status'))
+    fingerprint = hashlib.sha256(json.dumps([revision,query,limit,'lexical-v2']).encode()).hexdigest()
+    cached = RetrievalCache.objects.filter(project=project,key=fingerprint,expires__gt=timezone.now()).first()
+    if cached:
+        allowed = {c.id:c for c in Chunk.objects.filter(id__in=cached.chunk_ids,material__project=project,material__status='ready').select_related('material')}
+        if len(allowed)==len(cached.chunk_ids): return [allowed[i] for i in cached.chunk_ids]
+    result = _retrieve(project,query,limit)
+    RetrievalCache.objects.update_or_create(project=project,key=fingerprint,defaults={'chunk_ids':[c.id for c in result],'expires':timezone.now()+timedelta(minutes=10)})
+    return result
+
+def _retrieve(project, query, limit=5):
     words = set(tokens(query))
     if not words: return []
     qs = Chunk.objects.filter(material__project=project,material__status='ready').select_related('material')
@@ -66,7 +79,7 @@ def event(project, kind, key, data=None):
 
 def refresh_context(project):
     concepts = list(project.concepts.order_by('mastery'))
-    context = {'goal':project.goal,'weaknesses':[c.name for c in concepts if c.evidence_count and c.mastery<.6][:5],
+    context = {**{k:v for k,v in project.context.items() if k in ['continuity','insights']},'goal':project.goal,'weaknesses':[c.name for c in concepts if c.evidence_count and c.mastery<.6][:5],
       'strengths':[c.name for c in concepts if c.evidence_count and c.mastery>=.75][:5],
       'repeated_mistakes':[{'concept':c.name,'count':c.mistakes} for c in concepts if c.mistakes>=2][:5],
       'recent_assessments':list(Assessment.objects.filter(question__project=project).order_by('-created').values('score','missing')[:5])}
@@ -112,6 +125,16 @@ def tutor(user, project, question, key):
     with transaction.atomic():
         m,_ = Message.objects.get_or_create(project=project,key=key,defaults={'question':question,'answer':answer,'citations':citations})
         event(project,'tutor',f'tutor:{m.id}',{'sources':[c['chunk_id'] for c in citations]})
+        # Bounded extractive memory: no extra model call and no invented summary.
+        locked = Project.objects.select_for_update().get(id=project.id)
+        context = locked.context
+        turns = list(project.messages.order_by('-created')[:20])
+        context['continuity'] = {'turn_count':project.messages.count(),
+            'recent_questions':[t.question[:180] for t in turns[:8]][::-1],
+            'source_pages':list(dict.fromkeys(f"{c['document']} p.{c['page']}" for t in turns for c in t.citations))[:12],
+            'updated':timezone.now().isoformat()}
+        locked.context = context
+        locked.save(update_fields=['context'])
     return m
 
 def select_concept(project):
@@ -178,4 +201,6 @@ def grade(project, question, answer):
         event(project,'assessment_completed',f'assessment:{a.id}',{'score':score,'concept':c.name})
         event(project,'mastery_updated',f'mastery:{a.id}',{'concept':c.name,'before':before,'after':c.mastery})
         refresh_context(project)
+        from .insights import enqueue_insights
+        enqueue_insights(project, f'assessment:{a.id}')
     return a

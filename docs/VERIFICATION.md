@@ -24,7 +24,7 @@ The demo recording uses real browser captures and saved live results. Captions e
 
 ## Known limitations
 
-- Text-based PDFs only; no OCR, image/diagram interpretation or robust table layout reconstruction. Mixed scanned pages are explicitly reported. Limits: 20 MB, 200 pages; concept extraction samples at most 24 chunks.
+- Text-based PDFs only; no OCR or image/diagram interpretation; ruled tables and text layout are extracted, while complex tables still need source review. Mixed scanned pages are explicitly reported. Limits: 20 MB, 200 pages; concept extraction samples at most 24 chunks.
 - Token-hashing plus lexical retrieval is transparent and cheap, but weaker than semantic embeddings. Exact citation quotes verify source provenance, not full logical entailment. Broader paraphrases can be refused conservatively.
 - Mastery is a heuristic estimate, not a validated psychometric measure. Open-ended grading can vary; the six-case evaluation is small and not a calibrated benchmark.
 - Configurable token price rates are estimates; actual provider billing and model availability can differ. Rate limits can require waiting, increasing quota or enabling provider billing. Failure responses may omit usage; those rows display Not reported. Aggregate totals reflect only reported usage.
@@ -37,3 +37,10 @@ The demo recording uses real browser captures and saved live results. Captions e
 ## Publication correction
 
 The initial push briefly included SQLite test-database journal files (demo and browser-test data). No provider key was present. The files were removed from the published branch history with an exact force-with-lease, ignore rules were expanded to cover journals, and the full committed tree was rescanned for private database/media files and the actual configured API keys. Test sessions are invalidated after verification. The private runtime database and environment file are not part of the final source tree. GitHub may retain unreachable objects outside the branch; no permanent server-side purge is claimed.
+
+## Should Have extension (2026-09-18)
+
+- **41 Django tests passed locally** (27 existing + 14 extension tests); the recorded fixture regression evaluation passed **14/14**. Frontend production build and migration drift check passed. Migration 0002 applied locally.
+- The new deterministic suite covers streamed JSON and citation validation, invalid draft rejection, provider contracts, cache isolation/invalidation, continuity, page-aware table extraction, insight jobs, retry recovery and filtered analytics. Provider outputs are mocked. See `regression-results.json` for the exact executed count.
+- Six additional browser checks passed with real persisted data and no provider/network mocks: unsupported SSE answer, memory after reload, background insight snapshot, breakdown/trace UI, 390px layouts, and admin insight/user filtering. See `browser-should-results.json`. Desktop/mobile screenshots were visually inspected.
+- No new live AI calls. No claim of successful live streamed Gemini/OpenAI answers. Existing demo video predates this extension; screenshots and browser scripts cover the added screens.
