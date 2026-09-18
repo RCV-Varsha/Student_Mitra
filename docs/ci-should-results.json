@@ -1,0 +1,14 @@
+{
+  "commit": "6e404e9",
+  "url": "https://github.com/RCV-Varsha/Student_Mitra/actions/runs/35341490718",
+  "jobs": [
+    {
+      "name": "backend",
+      "conclusion": "success"
+    },
+    {
+      "name": "frontend",
+      "conclusion": "success"
+    }
+  ]
+}
